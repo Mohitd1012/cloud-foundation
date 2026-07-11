@@ -28,14 +28,14 @@ resource "aws_secretsmanager_secret_version" "db" {
   secret_id = aws_secretsmanager_secret.db.id
   secret_string = jsonencode({
     username = var.db_username
-    password = random_password.db.result   # the app reads THIS at runtime via its IAM role
+    password = random_password.db.result # the app reads THIS at runtime via its IAM role
   })
 }
 
 # ---------------- DB subnet group (private DATA subnets only) ----------------
 resource "aws_db_subnet_group" "db" {
   name       = "${var.name}-db-subnets"
-  subnet_ids = var.data_subnet_ids   # ✅ RDS sits in the isolated data tier (no internet)
+  subnet_ids = var.data_subnet_ids # ✅ RDS sits in the isolated data tier (no internet)
   tags       = var.tags
 }
 
@@ -47,20 +47,20 @@ resource "aws_db_instance" "main" {
   instance_class = var.instance_class
 
   allocated_storage     = 20
-  max_allocated_storage = 100    # storage autoscaling
-  storage_encrypted     = true   # ✅ encryption at rest (KMS). Interview: "encryption at rest vs in transit"
+  max_allocated_storage = 100  # storage autoscaling
+  storage_encrypted     = true # ✅ encryption at rest (KMS). Interview: "encryption at rest vs in transit"
 
   db_name  = var.db_name
   username = var.db_username
-  password = random_password.db.result   # ✅ sourced from random_password, NOT a hardcoded literal
+  password = random_password.db.result # ✅ sourced from random_password, NOT a hardcoded literal
 
   db_subnet_group_name   = aws_db_subnet_group.db.name
-  vpc_security_group_ids = [var.db_sg_id]   # only the app SG can reach it (from security module)
+  vpc_security_group_ids = [var.db_sg_id] # only the app SG can reach it (from security module)
 
-  multi_az            = var.multi_az   # ✅ HA: synchronous standby in a 2nd AZ, auto-failover
-  publicly_accessible = false          # ✅ never expose a DB to the internet
+  multi_az            = var.multi_az # ✅ HA: synchronous standby in a 2nd AZ, auto-failover
+  publicly_accessible = false        # ✅ never expose a DB to the internet
 
-  backup_retention_period = 7          # point-in-time recovery window (RPO answer)
+  backup_retention_period = 7 # point-in-time recovery window (RPO answer)
   skip_final_snapshot     = var.skip_final_snapshot
   deletion_protection     = var.deletion_protection
 

@@ -42,7 +42,7 @@ resource "aws_iam_role_policy" "read_db_secret" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [var.db_secret_arn]          # ✅ scoped to one ARN, not "*"
+      Resource = [var.db_secret_arn] # ✅ scoped to one ARN, not "*"
     }]
   })
 }
@@ -84,7 +84,7 @@ resource "aws_launch_template" "app" {
   )
 
   metadata_options {
-    http_tokens = "required"   # ✅ IMDSv2 only — mitigates SSRF credential theft (security best practice)
+    http_tokens = "required" # ✅ IMDSv2 only — mitigates SSRF credential theft (security best practice)
   }
 
   tag_specifications {
@@ -99,7 +99,7 @@ resource "aws_lb" "app" {
   load_balancer_type = "application"
   internal           = false
   security_groups    = [var.alb_sg_id]
-  subnets            = var.public_subnet_ids   # ✅ ALB lives in PUBLIC subnets
+  subnets            = var.public_subnet_ids # ✅ ALB lives in PUBLIC subnets
   tags               = var.tags
 }
 
@@ -111,7 +111,7 @@ resource "aws_lb_target_group" "app" {
   vpc_id   = var.vpc_id
 
   health_check {
-    path                = "/healthz"   # ✅ must match the endpoint the app actually serves
+    path                = "/healthz" # ✅ must match the endpoint the app actually serves
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 15
@@ -135,9 +135,9 @@ resource "aws_lb_listener" "http" {
 # ---------------- Auto Scaling Group (in PRIVATE app subnets) ----------------
 resource "aws_autoscaling_group" "app" {
   name                = "${var.name}-asg"
-  vpc_zone_identifier = var.app_subnet_ids       # ✅ instances are PRIVATE (egress via NAT)
+  vpc_zone_identifier = var.app_subnet_ids # ✅ instances are PRIVATE (egress via NAT)
   target_group_arns   = [aws_lb_target_group.app.arn]
-  health_check_type   = "ELB"                    # ✅ replace instances the ALB marks unhealthy
+  health_check_type   = "ELB" # ✅ replace instances the ALB marks unhealthy
 
   min_size         = var.min_size
   max_size         = var.max_size
@@ -172,6 +172,6 @@ resource "aws_autoscaling_policy" "cpu" {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    target_value = 60.0   # scale to keep avg CPU ~60%
+    target_value = 60.0 # scale to keep avg CPU ~60%
   }
 }

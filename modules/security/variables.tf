@@ -21,6 +21,18 @@ variable "db_port" {
   default     = 5432
   description = "Database port (app -> db). 5432 Postgres, 3306 MySQL."
 }
+variable "public_subnet_ids" {
+  type        = list(string)
+  description = "Public subnet IDs (NACL association: ALB/NAT tier)."
+}
+variable "app_subnet_ids" {
+  type        = list(string)
+  description = "Private app subnet IDs (NACL association)."
+}
+variable "data_subnet_ids" {
+  type        = list(string)
+  description = "Private data subnet IDs (NACL association)."
+}
 variable "tags" {
   type    = map(string)
   default = {}

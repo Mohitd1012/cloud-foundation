@@ -3,10 +3,10 @@
 
 environment        = "prod"
 region             = "us-east-1"
-availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]  # 3 AZs
+availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"] # 3 AZs
 
-single_nat_gateway = false  # one NAT PER AZ → no single point of failure
-db_multi_az        = true   # synchronous standby + automatic failover
+single_nat_gateway = false # one NAT PER AZ → no single point of failure
+db_multi_az        = true  # synchronous standby + automatic failover
 
 instance_type    = "t3.small"
 desired_capacity = 3

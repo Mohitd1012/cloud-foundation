@@ -24,7 +24,7 @@
 # below is mostly empty — only the truly static `encrypt` lives here.
 terraform {
   backend "s3" {
-    encrypt = true   # ✅ encrypt state at rest (it can contain secrets like the DB password)
+    encrypt = true # ✅ encrypt state at rest (it can contain secrets like the DB password)
     # bucket, key, region, dynamodb_table come from envs/<env>.backend.hcl
   }
 

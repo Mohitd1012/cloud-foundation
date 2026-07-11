@@ -52,10 +52,10 @@ resource "aws_security_group" "app" {
 
   ingress {
     description     = "App port from ALB SG only"
-    from_port       = var.app_port           # e.g. 8080
+    from_port       = var.app_port # e.g. 8080
     to_port         = var.app_port
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]   # ✅ reference the SG, not a CIDR → least privilege
+    security_groups = [aws_security_group.alb.id] # ✅ reference the SG, not a CIDR → least privilege
   }
   # NOTE: deliberately NO SSH (22) from the internet. Use SSM Session Manager for shell access
   #       (no bastion, no open port 22, fully audited). This is the senior-grade answer.
@@ -63,7 +63,7 @@ resource "aws_security_group" "app" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]   # app needs egress (NAT) to pull packages / call the DB
+    cidr_blocks = ["0.0.0.0/0"] # app needs egress (NAT) to pull packages / call the DB
   }
   tags = merge(var.tags, { Name = "${var.name}-app-sg" })
 }
@@ -76,17 +76,17 @@ resource "aws_security_group" "db" {
 
   ingress {
     description     = "DB port from app SG only"
-    from_port       = var.db_port            # 5432 (Postgres) / 3306 (MySQL)
+    from_port       = var.db_port # 5432 (Postgres) / 3306 (MySQL)
     to_port         = var.db_port
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]   # ✅ DB is unreachable except from the app tier
+    security_groups = [aws_security_group.app.id] # ✅ DB is unreachable except from the app tier
   }
   # No egress to the internet needed for a managed DB; keep it locked down.
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [var.vpc_cidr]   # only intra-VPC egress
+    cidr_blocks = [var.vpc_cidr] # only intra-VPC egress
   }
   tags = merge(var.tags, { Name = "${var.name}-db-sg" })
 }

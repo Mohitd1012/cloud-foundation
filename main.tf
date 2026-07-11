@@ -8,7 +8,7 @@
 #   vpc -> security -> data -> compute
 
 locals {
-  name = "${var.project}-${var.environment}"   # e.g. cloudfound-dev
+  name = "${var.project}-${var.environment}" # e.g. cloudfound-dev
   tags = { Stack = local.name }
 }
 
@@ -17,25 +17,28 @@ module "vpc" {
   name               = local.name
   vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
-  single_nat_gateway = var.single_nat_gateway   # dev=true(cheap), prod=false(HA)
+  single_nat_gateway = var.single_nat_gateway # dev=true(cheap), prod=false(HA)
   tags               = local.tags
 }
 
 module "security" {
-  source   = "./modules/security"
-  name     = local.name
-  vpc_id   = module.vpc.vpc_id        # <- consumes vpc output
-  vpc_cidr = module.vpc.vpc_cidr
-  app_port = var.app_port
-  db_port  = var.db_port
-  tags     = local.tags
+  source            = "./modules/security"
+  name              = local.name
+  vpc_id            = module.vpc.vpc_id # <- consumes vpc output
+  vpc_cidr          = module.vpc.vpc_cidr
+  app_port          = var.app_port
+  db_port           = var.db_port
+  public_subnet_ids = module.vpc.public_subnet_ids # NACLs attach per tier (stateless layer)
+  app_subnet_ids    = module.vpc.app_subnet_ids
+  data_subnet_ids   = module.vpc.data_subnet_ids
+  tags              = local.tags
 }
 
 module "data" {
   source          = "./modules/data"
   name            = local.name
   data_subnet_ids = module.vpc.data_subnet_ids
-  db_sg_id        = module.security.db_sg_id   # <- only the app SG can reach the DB
+  db_sg_id        = module.security.db_sg_id # <- only the app SG can reach the DB
   multi_az        = var.db_multi_az
   tags            = local.tags
 }
@@ -48,7 +51,7 @@ module "compute" {
   app_subnet_ids    = module.vpc.app_subnet_ids
   alb_sg_id         = module.security.alb_sg_id
   app_sg_id         = module.security.app_sg_id
-  db_secret_arn     = module.data.db_secret_arn   # <- app role gets read on ONLY this secret
+  db_secret_arn     = module.data.db_secret_arn # <- app role gets read on ONLY this secret
   app_port          = var.app_port
   instance_type     = var.instance_type
   desired_capacity  = var.desired_capacity

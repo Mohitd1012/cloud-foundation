@@ -17,10 +17,10 @@ locals {
 }
 
 resource "aws_vpc" "this" {
-  cidr_block           = var.vpc_cidr          # e.g. 10.0.0.0/16  → 65k addresses
-  enable_dns_support   = true                  # ✅ needed for RDS endpoints / private DNS
+  cidr_block           = var.vpc_cidr # e.g. 10.0.0.0/16  → 65k addresses
+  enable_dns_support   = true         # ✅ needed for RDS endpoints / private DNS
   enable_dns_hostnames = true
-  tags = merge(var.tags, { Name = "${var.name}-vpc" })
+  tags                 = merge(var.tags, { Name = "${var.name}-vpc" })
 }
 
 resource "aws_internet_gateway" "this" {
@@ -33,8 +33,8 @@ resource "aws_subnet" "public" {
   count                   = local.az_count
   vpc_id                  = aws_vpc.this.id
   availability_zone       = var.availability_zones[count.index]
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)       # 10.0.0.0/24, 10.0.1.0/24...
-  map_public_ip_on_launch = true               # public subnet → instances get a public IP
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index) # 10.0.0.0/24, 10.0.1.0/24...
+  map_public_ip_on_launch = true                                     # public subnet → instances get a public IP
   tags = merge(var.tags, {
     Name = "${var.name}-public-${var.availability_zones[count.index]}"
     Tier = "public"
@@ -48,10 +48,10 @@ resource "aws_subnet" "app" {
   count             = local.az_count
   vpc_id            = aws_vpc.this.id
   availability_zone = var.availability_zones[count.index]
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)         # 10.0.10.0/24...
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10) # 10.0.10.0/24...
   tags = merge(var.tags, {
-    Name = "${var.name}-app-${var.availability_zones[count.index]}"
-    Tier = "app"
+    Name                              = "${var.name}-app-${var.availability_zones[count.index]}"
+    Tier                              = "app"
     "kubernetes.io/role/internal-elb" = "1"
   })
 }
@@ -61,7 +61,7 @@ resource "aws_subnet" "data" {
   count             = local.az_count
   vpc_id            = aws_vpc.this.id
   availability_zone = var.availability_zones[count.index]
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 20)         # 10.0.20.0/24...
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 20) # 10.0.20.0/24...
   tags = merge(var.tags, {
     Name = "${var.name}-data-${var.availability_zones[count.index]}"
     Tier = "data"
@@ -80,7 +80,7 @@ resource "aws_eip" "nat" {
 resource "aws_nat_gateway" "this" {
   count         = var.single_nat_gateway ? 1 : local.az_count
   allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id   # ✅ NAT MUST live in a PUBLIC subnet
+  subnet_id     = aws_subnet.public[count.index].id # ✅ NAT MUST live in a PUBLIC subnet
   tags          = merge(var.tags, { Name = "${var.name}-nat-${count.index}" })
   depends_on    = [aws_internet_gateway.this]
 }

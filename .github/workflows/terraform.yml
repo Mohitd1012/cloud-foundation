@@ -1,0 +1,77 @@
+# .github/workflows/terraform.yml — CI for Terraform (Topic 7 + DevSecOps shift-left).
+#
+# Demonstrates: format check, validate, SECURITY SCAN (tfsec), and plan-on-PR / apply-on-merge.
+# Auth uses OIDC (short-lived creds) — NO long-lived AWS keys in GitHub secrets (Troubleshooting Q17).
+
+name: terraform
+
+on:
+  pull_request:
+    paths: ["project1-cloud-foundation/**"]
+  push:
+    branches: [main]
+    paths: ["project1-cloud-foundation/**"]
+
+permissions:
+  id-token: write   # ✅ required for OIDC federation to AWS
+  contents: read
+  pull-requests: write
+
+defaults:
+  run:
+    working-directory: project1-cloud-foundation
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Format check
+        run: terraform fmt -check -recursive   # fails if code isn't canonically formatted
+
+      # Assume an AWS role via OIDC — short-lived, no static secrets.
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-terraform
+          aws-region: us-east-1
+
+      - name: Init (dev backend)
+        run: terraform init -backend-config=envs/dev.backend.hcl
+
+      - name: Validate
+        run: terraform validate
+
+      # SHIFT-LEFT SECURITY: scan IaC for misconfigs BEFORE apply (open SGs, unencrypted storage...).
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: project1-cloud-foundation
+
+      - name: Plan (dev)
+        if: github.event_name == 'pull_request'
+        run: terraform plan -var-file=envs/dev.tfvars -no-color
+
+  # Gated apply on merge to main. Requires a protected "production" environment for approval.
+  apply:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production   # ✅ manual approval gate before touching real infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-terraform
+          aws-region: us-east-1
+      - run: terraform init -backend-config=envs/dev.backend.hcl
+      - run: terraform apply -var-file=envs/dev.tfvars -auto-approve

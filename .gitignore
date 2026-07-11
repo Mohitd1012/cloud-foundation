@@ -1,0 +1,14 @@
+# NEVER commit state (plaintext secrets) or local terraform dirs.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.tfstate.lock.info
+crash.log
+
+# DO commit .terraform.lock.hcl (pins provider versions for reproducibility).
+!.terraform.lock.hcl
+
+# local var overrides that may contain secrets
+*.auto.tfvars
+override.tf
+override.tf.json

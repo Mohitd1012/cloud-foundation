@@ -1,19 +1,20 @@
 # backend.tf — REMOTE STATE + LOCKING (Troubleshooting Q7).
 #
 # WHY (interview gold): local state on a laptop = no collaboration, no locking, easy to lose.
-# Remote state in S3 gives a shared source of truth; the DynamoDB table provides a LOCK so two
-# engineers running `terraform apply` at once can't corrupt state — the 2nd apply blocks.
+# Remote state in S3 gives a shared source of truth; `use_lockfile = true` (Terraform >= 1.10,
+# GA in 1.11) makes S3 itself provide the LOCK — a `.tflock` object written with a conditional
+# PUT — so two engineers running `terraform apply` at once can't corrupt state; the 2nd blocks.
 #
-# Bootstrap chicken-and-egg: the S3 bucket + DynamoDB table must exist BEFORE this backend works.
-# Create them once (manually, or with a tiny separate "bootstrap" stack), then init.
+# HISTORY NOTE (know both for interviews): before native S3 locking, the lock lived in a
+# DynamoDB table (`dynamodb_table = "..."` + a LockID partition key). That argument is now
+# DEPRECATED — no extra lock infrastructure is needed anymore, just the bucket.
+#
+# Bootstrap chicken-and-egg: the S3 bucket must exist BEFORE this backend works.
+# Create it once (manually, or with a tiny separate "bootstrap" stack), then init.
 #
 #   aws s3api create-bucket --bucket my-tf-state-bucket --region us-east-1
 #   aws s3api put-bucket-versioning --bucket my-tf-state-bucket \
 #       --versioning-configuration Status=Enabled
-#   aws dynamodb create-table --table-name tf-state-lock \
-#       --attribute-definitions AttributeName=LockID,AttributeType=S \
-#       --key-schema AttributeName=LockID,KeyType=HASH \
-#       --billing-mode PAY_PER_REQUEST
 #
 # NOTE: backend blocks can't use variables — values must be literals or passed via
 # `terraform init -backend-config=...`. Per-env keys keep dev/prod state separate.
@@ -24,8 +25,9 @@
 # below is mostly empty — only the truly static `encrypt` lives here.
 terraform {
   backend "s3" {
-    encrypt = true # ✅ encrypt state at rest (it can contain secrets like the DB password)
-    # bucket, key, region, dynamodb_table come from envs/<env>.backend.hcl
+    encrypt      = true # ✅ encrypt state at rest (it can contain secrets like the DB password)
+    use_lockfile = true # ✅ native S3 locking (replaces the deprecated dynamodb_table argument)
+    # bucket, key, region come from envs/<env>.backend.hcl
   }
 
   # --------------------------------------------------------------------------

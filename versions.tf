@@ -3,7 +3,7 @@
 # The .terraform.lock.hcl file (commit it!) locks exact provider hashes for reproducible applies.
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.11.0" # native S3 state locking (use_lockfile) went GA in 1.11
 
   required_providers {
     aws = {

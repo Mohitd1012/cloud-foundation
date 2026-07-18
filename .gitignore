@@ -4,9 +4,14 @@
 .terraform/
 .terraform.tfstate.lock.info
 crash.log
+*.backend.hcl
 
 # DO commit .terraform.lock.hcl (pins provider versions for reproducibility).
 !.terraform.lock.hcl
+
+# saved plan files — like state, they can embed secrets (variable values, data-source                                    
+# results) and go stale immediately. Never commit; regenerate with `terraform plan`.                                            
+*.tfplan  
 
 # local var overrides that may contain secrets
 *.auto.tfvars

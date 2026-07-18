@@ -24,7 +24,7 @@ state + locking. This is the "infrastructure" layer of the interview-prep platfo
 ## Interview topics this proves you can do
 - **VPC design** (the #1 AWS question): public/app/data subnets, IGW, NAT, route tables.
 - **SG vs NACL**, least-privilege tier-to-tier security (`modules/security`).
-- **Terraform**: remote state + DynamoDB locking, reusable modules, partial backend config, drift.
+- **Terraform**: remote state + native S3 locking (`use_lockfile`), reusable modules, partial backend config, drift.
 - **HA**: multi-AZ subnets, ASG, RDS Multi-AZ; **least-privilege IAM** (instance profile, scoped secret read).
 - **Secrets**: random_password → Secrets Manager (no plaintext in code/state).
 - **CI/DevSecOps**: fmt/validate/`tfsec`/plan-on-PR with OIDC (no static keys).
@@ -49,17 +49,18 @@ state + locking. This is the "infrastructure" layer of the interview-prep platfo
 ```
 
 ## Prerequisites (one-time bootstrap)
-The state bucket + lock table must exist before `init`. Create them once:
+The state bucket must exist before `init`. Create it once:
 ```bash
 aws s3api create-bucket --bucket my-tf-state-bucket --region us-east-1
 aws s3api put-bucket-versioning --bucket my-tf-state-bucket \
     --versioning-configuration Status=Enabled
-aws dynamodb create-table --table-name tf-state-lock \
-    --attribute-definitions AttributeName=LockID,AttributeType=S \
-    --key-schema AttributeName=LockID,KeyType=HASH \
-    --billing-mode PAY_PER_REQUEST
 ```
 Then edit the bucket name in `backend.tf` examples and `envs/*.backend.hcl`.
+
+Locking is **native S3** (`use_lockfile = true`, Terraform >= 1.11): Terraform writes a
+`.tflock` object next to the state via a conditional PUT — no DynamoDB table needed.
+(The old `dynamodb_table` + LockID-table pattern is deprecated; know it for interviews,
+you'll still see it in older codebases.)
 
 ## Usage
 ```bash
@@ -81,7 +82,7 @@ terraform destroy -var-file=envs/dev.tfvars
 
 ## Deliberately break it (practice the troubleshooting playbook)
 Work through `../03_troubleshooting_playbook.md`. High-value reps in THIS repo:
-- **Q7 (state lock):** remove `dynamodb_table` from the backend, run two applies at once → corruption. Restore it.
+- **Q7 (state lock):** run two applies at once → the 2nd blocks on the S3 lock (watch the `.tflock` object appear). Then try `-lock=false` on both to see why that flag is dangerous.
 - **Q9 (secret leak):** hardcode a `password = "..."` in `modules/data/main.tf`, `apply`, then grep the state file for it. Revert to `random_password`.
 - **Q11 (no egress):** comment out the `nat_gateway_id` route in `modules/vpc/main.tf` → instances can't `yum update`. Restore.
 - **Q12 (502):** change the target-group `health_check.path` to `/wrong` → targets go unhealthy → ALB 502. Fix the path.

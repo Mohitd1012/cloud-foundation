@@ -60,7 +60,9 @@ resource "aws_db_instance" "main" {
   multi_az            = var.multi_az # ✅ HA: synchronous standby in a 2nd AZ, auto-failover
   publicly_accessible = false        # ✅ never expose a DB to the internet
 
-  backup_retention_period = 7 # point-in-time recovery window (RPO answer)
+  # Point-in-time recovery window (the RPO answer). Env-tunable: AWS free-plan
+  # accounts cap this at 1 day (FreeTierRestrictionError if exceeded) — dev=1, prod=7.
+  backup_retention_period = var.backup_retention_days
   skip_final_snapshot     = var.skip_final_snapshot
   deletion_protection     = var.deletion_protection
 

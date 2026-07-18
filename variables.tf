@@ -64,3 +64,7 @@ variable "db_multi_az" {
   type    = bool
   default = false
 }
+variable "db_backup_retention_days" {
+  type    = number
+  default = 1 # free-plan accounts cap RDS retention at 1 day; prod overrides to 7
+}

@@ -35,12 +35,13 @@ module "security" {
 }
 
 module "data" {
-  source          = "./modules/data"
-  name            = local.name
-  data_subnet_ids = module.vpc.data_subnet_ids
-  db_sg_id        = module.security.db_sg_id # <- only the app SG can reach the DB
-  multi_az        = var.db_multi_az
-  tags            = local.tags
+  source                = "./modules/data"
+  name                  = local.name
+  data_subnet_ids       = module.vpc.data_subnet_ids
+  db_sg_id              = module.security.db_sg_id # <- only the app SG can reach the DB
+  multi_az              = var.db_multi_az
+  backup_retention_days = var.db_backup_retention_days
+  tags                  = local.tags
 }
 
 module "compute" {

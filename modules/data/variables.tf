@@ -37,6 +37,11 @@ variable "deletion_protection" {
   type    = bool
   default = false # prod: true.
 }
+variable "backup_retention_days" {
+  type        = number
+  default     = 7 # prod-safe default; dev overrides to 1 (free-plan cap)
+  description = "Automated backup retention in days (PITR window)."
+}
 variable "tags" {
   type    = map(string)
   default = {}

@@ -13,4 +13,5 @@ desired_capacity = 3
 min_size         = 3
 max_size         = 9
 
-db_backup_retention_days = 7
+db_backup_retention_days    = 7
+secret_recovery_window_days = 30

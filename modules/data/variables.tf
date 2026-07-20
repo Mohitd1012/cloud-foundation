@@ -37,6 +37,11 @@ variable "deletion_protection" {
   type    = bool
   default = false # prod: true.
 }
+variable "secret_recovery_window_days" {
+  type        = number
+  default     = 30 # prod-safe; dev overrides to 0 (immediate purge, allows same-day rebuild)
+  description = "Secrets Manager recovery window on delete. 0 = force-delete immediately."
+}
 variable "backup_retention_days" {
   type        = number
   default     = 7 # prod-safe default; dev overrides to 1 (free-plan cap)

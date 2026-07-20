@@ -68,3 +68,7 @@ variable "db_backup_retention_days" {
   type    = number
   default = 1 # free-plan accounts cap RDS retention at 1 day; prod overrides to 7
 }
+variable "secret_recovery_window_days" {
+  type    = number
+  default = 0 # dev: purge on destroy (soft-delete blocks same-name recreate); prod: 30
+}

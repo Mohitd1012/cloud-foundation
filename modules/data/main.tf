@@ -21,6 +21,10 @@ resource "aws_secretsmanager_secret" "db" {
   name        = "${var.name}/db/master"
   description = "Master credentials for ${var.name} RDS"
   tags        = var.tags
+  # GOTCHA (learned the hard way): deleting a secret only SCHEDULES it (recovery window,
+  # default 30 days) — recreating the same name then fails with "already scheduled for
+  # deletion". Dev sets 0 = purge immediately on destroy; prod keeps the safety window.
+  recovery_window_in_days = var.secret_recovery_window_days
   # PROD: attach a rotation Lambda for automatic credential rotation.
 }
 

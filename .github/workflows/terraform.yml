@@ -44,7 +44,7 @@ jobs:
       # Replaces static AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in secrets.
       # Role is scoped to this repo only (sub condition in trust policy).
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6.2.2
         with:
           role-to-assume: ${{ env.CI_ROLE }}
           aws-region: ${{ env.AWS_REGION }}

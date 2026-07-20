@@ -82,14 +82,14 @@ terraform destroy -var-file=envs/dev.tfvars
 
 ## Deliberately break it (practice the troubleshooting playbook)
 Work through `../03_troubleshooting_playbook.md`. High-value reps in THIS repo:
-- **Q7 (state lock):** run two applies at once → the 2nd blocks on the S3 lock (watch the `.tflock` object appear). Then try `-lock=false` on both to see why that flag is dangerous.
-- **Q9 (secret leak):** hardcode a `password = "..."` in `modules/data/main.tf`, `apply`, then grep the state file for it. Revert to `random_password`.
-- **Q11 (no egress):** comment out the `nat_gateway_id` route in `modules/vpc/main.tf` → instances can't `yum update`. Restore.
-- **Q12 (502):** change the target-group `health_check.path` to `/wrong` → targets go unhealthy → ALB 502. Fix the path.
+- **(state lock):** run two applies at once → the 2nd blocks on the S3 lock (watch the `.tflock` object appear). Then try `-lock=false` on both to see why that flag is dangerous.
+- ** (secret leak):** hardcode a `password = "..."` in `modules/data/main.tf`, `apply`, then grep the state file for it. Revert to `random_password`.
+- ** (no egress):** comment out the `nat_gateway_id` route in `modules/vpc/main.tf` → instances can't `yum update`. Restore.
+- ** (502):** change the target-group `health_check.path` to `/wrong` → targets go unhealthy → ALB 502. Fix the path.
 - **Drift:** change a security group rule in the AWS console, run `terraform plan` → watch it detect drift → `apply` to reconcile.
 
 ## Cost note
 NAT gateways + RDS + ALB cost money even when idle (~$1–3/day in dev). **`terraform destroy` when done.**
 
 ## Next
-Project 2 (EKS + GitOps) reuses this `modules/vpc`. See `../02_project_plan.md`.
+Project 2 (EKS + GitOps) reuses this `modules/vpc`.

@@ -17,3 +17,5 @@ crash.log
 *.auto.tfvars
 override.tf
 override.tf.json
+
+.DS_Store

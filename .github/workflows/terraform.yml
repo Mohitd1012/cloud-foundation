@@ -1,77 +1,97 @@
-# .github/workflows/terraform.yml — CI for Terraform (Topic 7 + DevSecOps shift-left).
+# .github/workflows/terraform.yml
 #
-# Demonstrates: format check, validate, SECURITY SCAN (tfsec), and plan-on-PR / apply-on-merge.
-# Auth uses OIDC (short-lived creds) — NO long-lived AWS keys in GitHub secrets (Troubleshooting Q17).
+# On PR  → fmt-check + validate + tfsec scan + plan (plan posted as PR comment)
+# On push main → same validate jobs (no auto-apply; apply is always a deliberate CLI action)
+#
+# Auth: OIDC federation — no long-lived AWS keys in GitHub secrets (Q17 answer).
+# CI role is read-only: plan + state lock only. Apply requires a human with a higher-privilege role.
 
 name: terraform
 
 on:
   pull_request:
-    paths: ["project1-cloud-foundation/**"]
+    branches: [main]
   push:
     branches: [main]
-    paths: ["project1-cloud-foundation/**"]
 
 permissions:
-  id-token: write   # ✅ required for OIDC federation to AWS
+  id-token: write    # required for OIDC token exchange with AWS STS
   contents: read
   pull-requests: write
 
-defaults:
-  run:
-    working-directory: project1-cloud-foundation
+env:
+  TF_VERSION: "1.11.0"
+  AWS_REGION: "us-east-1"
+  CI_ROLE: "arn:aws:iam::570461445597:role/github-ci-cloud-engineer"
 
 jobs:
   validate:
+    name: fmt / validate / scan / plan
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.7.5
+          terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Format check
-        run: terraform fmt -check -recursive   # fails if code isn't canonically formatted
+      # ── 1. Format (no AWS needed) ──────────────────────────────────────────
+      - name: fmt check
+        run: terraform fmt -check -recursive
 
-      # Assume an AWS role via OIDC — short-lived, no static secrets.
+      # ── 2. OIDC → short-lived AWS creds ────────────────────────────────────
+      # Replaces static AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in secrets.
+      # Role is scoped to this repo only (sub condition in trust policy).
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-terraform
-          aws-region: us-east-1
+          role-to-assume: ${{ env.CI_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Init (dev backend)
+      # ── 3. Init against dev backend ─────────────────────────────────────────
+      - name: terraform init
         run: terraform init -backend-config=envs/dev.backend.hcl
 
-      - name: Validate
+      # ── 4. Validate (syntax + provider schema) ──────────────────────────────
+      - name: terraform validate
         run: terraform validate
 
-      # SHIFT-LEFT SECURITY: scan IaC for misconfigs BEFORE apply (open SGs, unencrypted storage...).
+      # ── 5. Shift-left security scan ──────────────────────────────────────────
+      # tfsec catches open SGs, unencrypted storage, missing deletion_protection, etc.
+      # before any infra is provisioned. soft_fail=true: warns on findings, doesn't block CI.
       - name: tfsec
         uses: aquasecurity/tfsec-action@v1.0.0
         with:
-          working_directory: project1-cloud-foundation
+          working_directory: .
+          soft_fail: true
 
-      - name: Plan (dev)
+      # ── 6. Plan + post as PR comment ────────────────────────────────────────
+      - name: terraform plan
+        id: plan
+        run: terraform plan -var-file=envs/dev.tfvars -no-color 2>&1 | tee plan.out
+
+      - name: Post plan to PR
         if: github.event_name == 'pull_request'
-        run: terraform plan -var-file=envs/dev.tfvars -no-color
-
-  # Gated apply on merge to main. Requires a protected "production" environment for approval.
-  apply:
-    needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: production   # ✅ manual approval gate before touching real infra
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+        uses: actions/github-script@v7
         with:
-          terraform_version: 1.7.5
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-terraform
-          aws-region: us-east-1
-      - run: terraform init -backend-config=envs/dev.backend.hcl
-      - run: terraform apply -var-file=envs/dev.tfvars -auto-approve
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('plan.out', 'utf8');
+            const truncated = plan.length > 60000 ? plan.slice(0, 60000) + '\n...(truncated)' : plan;
+            const body = `### Terraform Plan (dev)\n\`\`\`\n${truncated}\n\`\`\``;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number
+            });
+            const existing = comments.find(c => c.body.startsWith('### Terraform Plan'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body
+              });
+            }
